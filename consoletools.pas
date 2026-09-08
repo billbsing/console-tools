@@ -600,7 +600,7 @@ begin
     end;
     if Option.ValidationType <> avSwitch then
     begin
-      Write('=' + ANSI_BRIGHT_YELLOW + Option.Name + ANSI_RESET);
+      Write(' ' + ANSI_BRIGHT_YELLOW + Option.Name + ANSI_RESET);
       Inc(SpaceCount, 1 + Option.Name.Length);
     end;
     Write(StringOfChar(' ', 40 - SpaceCount));
