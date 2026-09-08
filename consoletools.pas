@@ -736,6 +736,13 @@ var
 begin
   Option := TOption.Create(AName, Short, Long, ADescription);
   Option.ValidationType := AValidationType;
+  if Option.IsShort then
+  begin
+    if Assigned(FindOptionShort(Option.Short)) then
+    begin
+      raise EArgumentParserException.Create('Duplicate short option for ' + AName + ' -' + Short);
+    end;
+  end;
   FOptions.Add(AName, Option);
   Result := Option;
 end;
