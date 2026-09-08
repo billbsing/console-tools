@@ -56,6 +56,7 @@ type
     FValidationType: TArgumentValidationType;
     FIsValue: boolean;
     FValue: ansistring;
+    FHelpParameter: ansistring;
   protected
     function GetChoiceListText: ansistring; virtual;
     procedure SetChoiceListText(ACommaText: ansistring);
@@ -72,6 +73,7 @@ type
     property Value: ansistring read FValue write FValue;
     property IsValue: boolean read FIsValue write FIsValue;
     property ValidationType: TArgumentValidationType read FValidationType write FValidationType;
+    property HelpParameter: ansistring read FHelpParameter write FHelpParameter;
 
   end;
 
@@ -133,8 +135,8 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    function AddOption(AName, Short, Long, ADescription: ansistring; AValidationType: TArgumentValidationType = avString): TOption;
-    function AddArgument(AName, ADescription: ansistring; AState: TArgumentState = asRequired; AValidationType: TArgumentValidationType = avString): TArgument;
+    function AddOption(AName, Short, Long, ADescription, HelpParameter: ansistring; AValidationType: TArgumentValidationType = avString): TOption;
+    function AddArgument(AName, ADescription, HelpParameter: ansistring; AState: TArgumentState = asRequired; AValidationType: TArgumentValidationType = avString): TArgument;
     function GetOptionValueAsString(AName: ansistring; DefaultValue: ansistring = ''): ansistring;
     function GetOptionValueAsInteger(AName: ansistring; DefaultValue: integer = 0): integer;
     function GetArgumentValueAsString(AName: ansistring; DefaultValue: ansistring = ''): ansistring;
@@ -496,7 +498,7 @@ var
   ConsoleSplitter: TConsoleTextSplitter;
   SortedOptions: TStringList;
   Index: integer;
-  OptionText, SeperatiorText: AnsiString;
+  OptionText, SeperatiorText: ansistring;
 begin
   SortedOptions := TStringList.Create;
   BuildSortedOptions(SortedOptions);
@@ -516,8 +518,8 @@ begin
       Inc(TextCount, 3);
       if Option.ValidationType <> avSwitch then
       begin
-        OptionText := OptionText + ' ' + ANSI_YELLOW + Option.Name;
-        Inc(TextCount, 1 +  Option.Name.Length);
+        OptionText := OptionText + ' ' + ANSI_YELLOW + '<' + Option.HelpParameter + '>';
+        Inc(TextCount, 1 + Option.HelpParameter.Length + 2);
       end;
       OptionText := OptionText + ANSI_RESET;
       SeperatiorText := ' | ';
@@ -528,8 +530,8 @@ begin
       Inc(TextCount, 4 + SeperatiorText.Length + Option.Long.Length);
       if Option.ValidationType <> avSwitch then
       begin
-        OptionText := OptionText + '=' + ANSI_YELLOW + Option.Name;
-        Inc(TextCount, Option.Name.Length);
+        OptionText := OptionText + '=' + ANSI_YELLOW + '<' + Option.HelpParameter + '>';
+        Inc(TextCount, Option.HelpParameter.Length + 2);
       end;
       OptionText := OptionText + ANSI_RESET + ']';
     end;
@@ -547,7 +549,7 @@ begin
       ArgHolders := '[]';
       if (Argument.State = asRequired) then
         ArgHolders := '<>';
-      Write(ArgHolders.Chars[0] + ANSI_GREEN + Argument.Name + ANSI_RESET + ArgHolders.chars[1] + ' ');
+      Write(ArgHolders.Chars[0] + ANSI_GREEN + Argument.HelpParameter + ANSI_RESET + ArgHolders.chars[1] + ' ');
     end;
     WriteLn;
   end;
@@ -600,8 +602,8 @@ begin
     end;
     if Option.ValidationType <> avSwitch then
     begin
-      Write(' ' + ANSI_BRIGHT_YELLOW + Option.Name + ANSI_RESET);
-      Inc(SpaceCount, 1 + Option.Name.Length);
+      Write(' ' + ANSI_YELLOW + '<' + Option.HelpParameter + '>' + ANSI_RESET);
+      Inc(SpaceCount, 1 + Option.HelpParameter.Length + 2);
     end;
     Write(StringOfChar(' ', 40 - SpaceCount));
     ConsoleSplitter.Text := Option.FDescription;
@@ -629,8 +631,8 @@ begin
   WriteLn(ANSI_BRIGHT_BLUE + 'Arguments:' + ANSI_RESET);
   for Argument in FArguments do
   begin
-    Write('  ' + ANSI_GREEN + Argument.Name + ANSI_RESET);
-    Write(StringOfChar(' ', 38 - Argument.Name.Length));
+    Write('  ' + ANSI_GREEN + Argument.HelpParameter + ANSI_RESET);
+    Write(StringOfChar(' ', 38 - Argument.HelpParameter.Length));
     ConsoleSplitter.Text := Argument.Description;
     ConsoleSplitter.Render(40, FLineLength);
     WriteLn;
@@ -749,12 +751,13 @@ begin
   inherited Destroy;
 end;
 
-function TArgumentParser.AddOption(AName, Short, Long, ADescription: ansistring; AValidationType: TArgumentValidationType): TOption;
+function TArgumentParser.AddOption(AName, Short, Long, ADescription, HelpParameter: ansistring; AValidationType: TArgumentValidationType): TOption;
 var
   Option: TOption;
 begin
   Option := TOption.Create(AName, Short, Long, ADescription);
   Option.ValidationType := AValidationType;
+  Option.HelpParameter := HelpParameter;
   if Option.IsShort then
   begin
     if Assigned(FindOptionShort(Option.Short)) then
@@ -773,13 +776,14 @@ begin
   Result := Option;
 end;
 
-function TArgumentParser.AddArgument(AName, ADescription: ansistring; AState: TArgumentState; AValidationType: TArgumentValidationType): TArgument;
+function TArgumentParser.AddArgument(AName, ADescription, HelpParameter: ansistring; AState: TArgumentState; AValidationType: TArgumentValidationType): TArgument;
 var
   Argument: TArgument;
 begin
   Argument := TArgument.Create(AName, ADescription, AState);
   Argument.State := AState;
   Argument.ValidationType := AValidationType;
+  Argument.HelpParameter := HelpParameter;
   FArguments.Add(Argument);
   FArgumentIndexMap.Add(AName, FArguments.Count - 1);
   Result := Argument;
