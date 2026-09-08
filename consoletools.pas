@@ -491,11 +491,12 @@ procedure TArgumentParser.ShowHelpUsage;
 var
   Option: TOption;
   Argument: TArgument;
-  SpaceCount: integer;
+  SpaceCount, TextCount: integer;
   ArgHolders: ansistring;
   ConsoleSplitter: TConsoleTextSplitter;
   SortedOptions: TStringList;
   Index: integer;
+  OptionText, SeperatiorText: AnsiString;
 begin
   SortedOptions := TStringList.Create;
   BuildSortedOptions(SortedOptions);
@@ -505,18 +506,36 @@ begin
   Write(ANSI_BRIGHT_MAGENTA + '  ' + Title + ANSI_RESET + ' ');
   for Index := 0 to SortedOptions.Count - 1 do
   begin
+    SeperatiorText := '';
     Option := FOptions.Items[SortedOptions.ValueFromIndex[Index]];
+    OptionText := '';
+    TextCount := 0;
     if Option.IsShort then
     begin
-      ConsoleSplitter.AddWord(ANSI_RESET + '[' + ANSI_GREEN + '-' + Option.Short + ' ' + ANSI_YELLOW + Option.Name + ANSI_RESET + ']',
-        5 + Option.Name.Length);
+      OptionText := OptionText + ANSI_RESET + '[' + ANSI_GREEN + '-' + Option.Short;
+      Inc(TextCount, 3);
+      if Option.ValidationType <> avSwitch then
+      begin
+        OptionText := OptionText + ' ' + ANSI_YELLOW + Option.Name;
+        Inc(TextCount, 1 +  Option.Name.Length);
+      end;
+      OptionText := OptionText + ANSI_RESET;
+      SeperatiorText := ' | ';
     end;
     if Option.IsLong then
     begin
-      ConsoleSplitter.AddWord(ANSI_RESET + '[' + ANSI_GREEN + '--' + Option.Long + ' ' + ANSI_YELLOW + Option.Name + ANSI_RESET + ']',
-        5 + Option.Long.Length + Option.Name.Length);
+      OptionText := OptionText + ANSI_RESET + SeperatiorText + ANSI_GREEN + '--' + Option.Long;
+      Inc(TextCount, 4 + SeperatiorText.Length + Option.Long.Length);
+      if Option.ValidationType <> avSwitch then
+      begin
+        OptionText := OptionText + '=' + ANSI_YELLOW + Option.Name;
+        Inc(TextCount, Option.Name.Length);
+      end;
+      OptionText := OptionText + ANSI_RESET + ']';
     end;
+    ConsoleSplitter.AddWord(OptionText, TextCount);
   end;
+
   ConsoleSplitter.Render(3 + Title.Length, FLineLength);
   if FArguments.Count > 0 then
   begin
@@ -581,7 +600,7 @@ begin
     end;
     if Option.ValidationType <> avSwitch then
     begin
-      Write(' ' + ANSI_BRIGHT_YELLOW + Option.Name + ANSI_RESET);
+      Write('=' + ANSI_BRIGHT_YELLOW + Option.Name + ANSI_RESET);
       Inc(SpaceCount, 1 + Option.Name.Length);
     end;
     Write(StringOfChar(' ', 40 - SpaceCount));
@@ -740,7 +759,14 @@ begin
   begin
     if Assigned(FindOptionShort(Option.Short)) then
     begin
-      raise EArgumentParserException.Create('Duplicate short option for ' + AName + ' -' + Short);
+      raise EArgumentParserException.Create('Duplicate short option for ' + AName + ' ' + Short);
+    end;
+  end;
+  if Option.IsLong then
+  begin
+    if Assigned(FindOptionLong(Option.Long)) then
+    begin
+      raise EArgumentParserException.Create('Duplicate long option for ' + AName + ' ' + Long);
     end;
   end;
   FOptions.Add(AName, Option);
