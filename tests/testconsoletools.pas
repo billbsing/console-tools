@@ -11,10 +11,11 @@ type
 
   { TTestArgumentParser }
 
-  // Exposes the protected BuildSortedOptions for testing
+  // Exposes the protected BuildSortedOptions and DetectColorSupport for testing
   TTestArgumentParser = class(TArgumentParser)
   public
     procedure SortedOptionNames(AList: TStrings);
+    function IsColorSupported: boolean;
   end;
 
   { TParseTest }
@@ -73,13 +74,15 @@ type
 
   TColorTest = class(TTestCase)
   private
-    FSavedEnabled: boolean;
+    FParser: TTestArgumentParser;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
   published
     procedure TestColorDisabled;
     procedure TestColorEnabled;
+    procedure TestColorDefaultsToDetected;
+    procedure TestColorPerParser;
   end;
 
 implementation
@@ -101,6 +104,11 @@ begin
   finally
     Sorted.Free;
   end;
+end;
+
+function TTestArgumentParser.IsColorSupported: boolean;
+begin
+  Result := DetectColorSupport;
 end;
 
 { TParseTest }
@@ -357,25 +365,45 @@ end;
 
 procedure TColorTest.SetUp;
 begin
-  FSavedEnabled := IsColorEnabled;
+  FParser := TTestArgumentParser.Create;
 end;
 
 procedure TColorTest.TearDown;
 begin
-  SetColorEnabled(FSavedEnabled);
+  FParser.Free;
 end;
 
 procedure TColorTest.TestColorDisabled;
 begin
-  SetColorEnabled(False);
-  AssertEquals('', ColorCode(ANSI_RED));
-  AssertEquals('', ColorCode(ANSI_RESET));
+  FParser.IsColor := False;
+  AssertEquals('', FParser.ColorCode(ANSI_RED));
+  AssertEquals('', FParser.ColorCode(ANSI_RESET));
 end;
 
 procedure TColorTest.TestColorEnabled;
 begin
-  SetColorEnabled(True);
-  AssertEquals(ANSI_RED, ColorCode(ANSI_RED));
+  FParser.IsColor := True;
+  AssertEquals(ANSI_RED, FParser.ColorCode(ANSI_RED));
+end;
+
+procedure TColorTest.TestColorDefaultsToDetected;
+begin
+  AssertEquals(FParser.IsColorSupported, FParser.IsColor);
+end;
+
+procedure TColorTest.TestColorPerParser;
+var
+  Other: TTestArgumentParser;
+begin
+  Other := TTestArgumentParser.Create;
+  try
+    FParser.IsColor := True;
+    Other.IsColor := False;
+    AssertEquals(ANSI_RED, FParser.ColorCode(ANSI_RED));
+    AssertEquals('', Other.ColorCode(ANSI_RED));
+  finally
+    Other.Free;
+  end;
 end;
 
 initialization

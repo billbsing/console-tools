@@ -119,6 +119,7 @@ type
     FArguments: TArgumentList;
     FArgumentIndexMap: TArgumentIndexMap;
     FLineLength: integer;
+    FIsColor: boolean;
   protected
     function FindOptionShort(AValue: char): TOption;
     function FindOptionLong(AValue: ansistring): TOption;
@@ -132,9 +133,12 @@ type
     function ParseOption(const Args: array of string; var ArgIndex: integer): boolean;
     procedure BuildSortedOptions(AList: TStringList);
     procedure SortChoiceLists;
+    function DetectColorSupport: boolean;
   public
     constructor Create;
     destructor Destroy; override;
+    // Returns ACode when IsColor is set, otherwise an empty string
+    function ColorCode(const ACode: ansistring): ansistring;
     function AddOption(AName, Short, Long, ADescription, HelpParameter: ansistring; AValidationType: TArgumentValidationType = avString): TOption;
     function AddArgument(AName, ADescription, HelpParameter: ansistring; AState: TArgumentState = asRequired; AValidationType: TArgumentValidationType = avString): TArgument;
     function GetOptionValueAsString(AName: ansistring; DefaultValue: ansistring = ''): ansistring;
@@ -151,6 +155,7 @@ type
     property Options[AName: ansistring]: TOption read GetOption;
     property Arguments[AIndex: integer]: TArgument read GetArgumentFromIndex;
     property ArgumentNames[AName: ansistring]: TArgument read GetArgumentFromName;
+    property IsColor: boolean read FIsColor write FIsColor;
   end;
 
 
@@ -203,52 +208,13 @@ const
   ANSI_BG_BRIGHT_CYAN = #27'[106m';
   ANSI_BG_BRIGHT_WHITE = #27'[107m';
 
-// Returns ACode when colour output is enabled, otherwise an empty string
-function ColorCode(const ACode: ansistring): ansistring;
-// Colour is enabled by default unless NO_COLOR is set or stdout is not a terminal
-function IsColorEnabled: boolean;
-procedure SetColorEnabled(AValue: boolean);
-function DetectColorSupport: boolean;
 
 implementation
 
 uses StrUtils{$ifdef UNIX}, termio{$endif}{$ifdef WINDOWS}, Windows{$endif};
 
-var
-  ColorEnabled: boolean;
 
-function ColorCode(const ACode: ansistring): ansistring;
-begin
-  Result := '';
-  if ColorEnabled then
-    Result := ACode;
-end;
-
-function IsColorEnabled: boolean;
-begin
-  Result := ColorEnabled;
-end;
-
-procedure SetColorEnabled(AValue: boolean);
-begin
-  ColorEnabled := AValue;
-end;
-
-function DetectColorSupport: boolean;
-begin
-  // https://no-color.org: any non-empty NO_COLOR value disables colour
-  Result := GetEnvironmentVariable('NO_COLOR') = '';
-  if not Result then
-    Exit;
-  {$ifdef UNIX}
-  Result := IsATTY(StdOutputHandle) = 1;
-  {$endif}
-  {$ifdef WINDOWS}
-  Result := GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) = FILE_TYPE_CHAR;
-  {$endif}
-end;
-
-  { TConsoleTextWord }
+{ TConsoleTextWord }
 
 constructor TConsoleTextWord.Create(AText: ansistring; ALength: integer);
 begin
@@ -778,12 +744,35 @@ begin
   end;
 end;
 
+
+function TArgumentParser.ColorCode(const ACode: ansistring): ansistring;
+begin
+  Result := '';
+  if FIsColor then
+    Result := ACode;
+end;
+
+function TArgumentParser.DetectColorSupport: boolean;
+begin
+  // https://no-color.org: any non-empty NO_COLOR value disables colour
+  Result := GetEnvironmentVariable('NO_COLOR') = '';
+  if not Result then
+    Exit;
+  {$ifdef UNIX}
+  Result := IsATTY(StdOutputHandle) = 1;
+  {$endif}
+  {$ifdef WINDOWS}
+  Result := GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) = FILE_TYPE_CHAR;
+  {$endif}
+end;
+
 constructor TArgumentParser.Create;
 begin
   FOptions := TOptionMap.Create([doOwnsValues]);
   FArguments := TArgumentList.Create(True);
   FLineLength := ARGUMENT_PARSER_DEFAULT_LINE_LENGTH;
   FArgumentIndexMap := TArgumentIndexMap.Create;
+  FIsColor:= DetectColorSupport;
 end;
 
 destructor TArgumentParser.Destroy;
@@ -951,7 +940,5 @@ begin
   Result := Option.IsValue;
 end;
 
-initialization
-  ColorEnabled := DetectColorSupport;
 
 end.

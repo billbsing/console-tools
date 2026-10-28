@@ -7,6 +7,10 @@ A small Free Pascal unit (`consoletools.pas`) for writing command-line programs.
 - Value validation: string, integer, a fixed list of choices, or a plain on/off switch
 - Coloured, word-wrapped `--help` output, built from the options you define
 
+## Requirements
+
+Free Pascal 3.3.1 or later (the current trunk/main branch, for example as installed by fpcupdeluxe). The unit uses `TStrings.Contains` and `TStrings.ContainsName`, which are not in the 3.2.x releases, so it will not compile with FPC 3.2.2.
+
 ## Usage
 
 Add `consoletools.pas` to your project, or put its folder on the unit search path (`-Fu`), and add `ConsoleTools` to your `uses` clause.
@@ -135,15 +139,21 @@ Parser.Parse(['-v', '--count=3', 'a.txt']);
 
 ### Colour output
 
-Help output is coloured with ANSI escape codes. Colour turns off automatically when:
+Help output is coloured with ANSI escape codes. Each `TArgumentParser` checks for colour support when it is created, and turns colour off when:
 
 - the `NO_COLOR` environment variable is set to any non-empty value (see [no-color.org](https://no-color.org)), or
 - stdout is not a terminal, for example when output is piped or redirected to a file.
 
-To override this from code, call `SetColorEnabled(True)` or `SetColorEnabled(False)`. To colour your own output the same way, wrap the codes in `ColorCode`, which returns an empty string when colour is off:
+To override this, set the parser's `IsColor` property before calling `ShowHelp`:
 
 ```pascal
-WriteLn(ColorCode(ANSI_RED) + 'error' + ColorCode(ANSI_RESET));
+Parser.IsColor := False;
+```
+
+The setting belongs to each parser, so two parsers can differ. To colour your own output the same way, wrap the `ANSI_*` codes in the parser's `ColorCode`, which returns an empty string when `IsColor` is off:
+
+```pascal
+WriteLn(Parser.ColorCode(ANSI_RED) + 'error' + Parser.ColorCode(ANSI_RESET));
 ```
 
 ## Running the tests
@@ -154,6 +164,8 @@ The tests use FPCUnit and live in `tests/`. Build them with Lazarus's `lazbuild`
 lazbuild tests/consoletoolstests.lpi
 tests/consoletoolstests --all --format=plain
 ```
+
+If more than one FPC is installed, make sure `lazbuild` and `fpc` here are the 3.3.1+ versions (see [Requirements](#requirements)).
 
 Or compile with `fpc` directly, without Lazarus:
 
