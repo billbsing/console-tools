@@ -744,14 +744,6 @@ begin
   end;
 end;
 
-
-function TArgumentParser.ColorCode(const ACode: ansistring): ansistring;
-begin
-  Result := '';
-  if FIsColor then
-    Result := ACode;
-end;
-
 function TArgumentParser.DetectColorSupport: boolean;
 begin
   // https://no-color.org: any non-empty NO_COLOR value disables colour
@@ -781,6 +773,13 @@ begin
   FreeAndNil(FArguments);
   FreeAndNil(FArgumentIndexMap);
   inherited Destroy;
+end;
+
+function TArgumentParser.ColorCode(const ACode: ansistring): ansistring;
+begin
+  Result := '';
+  if FIsColor then
+    Result := ACode;
 end;
 
 function TArgumentParser.AddOption(AName, Short, Long, ADescription, HelpParameter: ansistring; AValidationType: TArgumentValidationType): TOption;
