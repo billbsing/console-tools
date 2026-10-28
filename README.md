@@ -9,7 +9,7 @@ A small Free Pascal unit (`consoletools.pas`) for writing command-line programs.
 
 ## Requirements
 
-Free Pascal 3.3.1 or later (the current trunk/main branch, for example as installed by fpcupdeluxe). The unit uses `TStrings.Contains` and `TStrings.ContainsName`, which are not in the 3.2.x releases, so it will not compile with FPC 3.2.2.
+Free Pascal 3.2.0 or later. The unit uses `Generics.Collections`, which first shipped with FPC 3.2.0. It is tested with FPC 3.2.2.
 
 ## Usage
 
@@ -165,7 +165,7 @@ lazbuild tests/consoletoolstests.lpi
 tests/consoletoolstests --all --format=plain
 ```
 
-If more than one FPC is installed, make sure `lazbuild` and `fpc` here are the 3.3.1+ versions (see [Requirements](#requirements)).
+If more than one FPC is installed, make sure `lazbuild` and `fpc` here are 3.2.0 or later (see [Requirements](#requirements)).
 
 Or compile with `fpc` directly, without Lazarus:
 

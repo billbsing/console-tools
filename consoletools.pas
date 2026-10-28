@@ -381,7 +381,7 @@ begin
       end;
     end;
     avChoice: begin
-      if not (FChoiceList.Contains(FValue) or FChoiceList.ContainsName(FValue)) then
+      if (FChoiceList.IndexOf(FValue) < 0) and (FChoiceList.IndexOfName(FValue) < 0) then
       begin
         raise EArgumentParserException.Create(ArgType + ' ' + ItemName + ' must be one of the following : {' + ChoiceListText + '} instead of the value: ' + FValue);
       end;
