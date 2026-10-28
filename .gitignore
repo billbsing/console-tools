@@ -1,1 +1,4 @@
 backup/
+tests/lib/
+tests/consoletoolstests
+tests/*.lps

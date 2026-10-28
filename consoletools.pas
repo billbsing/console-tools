@@ -129,7 +129,7 @@ type
     procedure ShowHelpDescription;
     procedure ShowHelpOptions;
     procedure ShowHelpArguments;
-    function ParseOption(Out ArgIndex: integer): boolean;
+    function ParseOption(const Args: array of string; var ArgIndex: integer): boolean;
     procedure BuildSortedOptions(AList: TStringList);
     procedure SortChoiceLists;
   public
@@ -140,7 +140,8 @@ type
     function GetOptionValueAsString(AName: ansistring; DefaultValue: ansistring = ''): ansistring;
     function GetOptionValueAsInteger(AName: ansistring; DefaultValue: integer = 0): integer;
     function GetArgumentValueAsString(AName: ansistring; DefaultValue: ansistring = ''): ansistring;
-    procedure Parse;
+    procedure Parse; overload;
+    procedure Parse(const Args: array of string); overload;
     procedure Validate;
     procedure ShowHelp;
     function IsOption(AName: ansistring): boolean;
@@ -202,9 +203,50 @@ const
   ANSI_BG_BRIGHT_CYAN = #27'[106m';
   ANSI_BG_BRIGHT_WHITE = #27'[107m';
 
+// Returns ACode when colour output is enabled, otherwise an empty string
+function ColorCode(const ACode: ansistring): ansistring;
+// Colour is enabled by default unless NO_COLOR is set or stdout is not a terminal
+function IsColorEnabled: boolean;
+procedure SetColorEnabled(AValue: boolean);
+function DetectColorSupport: boolean;
+
 implementation
 
-uses StrUtils;
+uses StrUtils{$ifdef UNIX}, termio{$endif}{$ifdef WINDOWS}, Windows{$endif};
+
+var
+  ColorEnabled: boolean;
+
+function ColorCode(const ACode: ansistring): ansistring;
+begin
+  Result := '';
+  if ColorEnabled then
+    Result := ACode;
+end;
+
+function IsColorEnabled: boolean;
+begin
+  Result := ColorEnabled;
+end;
+
+procedure SetColorEnabled(AValue: boolean);
+begin
+  ColorEnabled := AValue;
+end;
+
+function DetectColorSupport: boolean;
+begin
+  // https://no-color.org: any non-empty NO_COLOR value disables colour
+  Result := GetEnvironmentVariable('NO_COLOR') = '';
+  if not Result then
+    Exit;
+  {$ifdef UNIX}
+  Result := IsATTY(StdOutputHandle) = 1;
+  {$endif}
+  {$ifdef WINDOWS}
+  Result := GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) = FILE_TYPE_CHAR;
+  {$endif}
+end;
 
   { TConsoleTextWord }
 
@@ -504,37 +546,38 @@ begin
   BuildSortedOptions(SortedOptions);
 
   ConsoleSplitter := TConsoleTextSplitter.Create;
-  WriteLn(ANSI_BRIGHT_BLUE + 'Usage:');
-  Write(ANSI_BRIGHT_MAGENTA + '  ' + Title + ANSI_RESET + ' ');
+  WriteLn(ColorCode(ANSI_BRIGHT_BLUE) + 'Usage:');
+  Write(ColorCode(ANSI_BRIGHT_MAGENTA) + '  ' + Title + ColorCode(ANSI_RESET) + ' ');
   for Index := 0 to SortedOptions.Count - 1 do
   begin
     SeperatiorText := '';
     Option := FOptions.Items[SortedOptions.ValueFromIndex[Index]];
-    OptionText := '';
-    TextCount := 0;
+    OptionText := ColorCode(ANSI_RESET) + '[';
+    TextCount := 1;
     if Option.IsShort then
     begin
-      OptionText := OptionText + ANSI_RESET + '[' + ANSI_GREEN + '-' + Option.Short;
-      Inc(TextCount, 3);
+      OptionText := OptionText + ColorCode(ANSI_GREEN) + '-' + Option.Short;
+      Inc(TextCount, 2);
       if Option.ValidationType <> avSwitch then
       begin
-        OptionText := OptionText + ' ' + ANSI_YELLOW + '<' + Option.HelpParameter + '>';
+        OptionText := OptionText + ' ' + ColorCode(ANSI_YELLOW) + '<' + Option.HelpParameter + '>';
         Inc(TextCount, 1 + Option.HelpParameter.Length + 2);
       end;
-      OptionText := OptionText + ANSI_RESET;
+      OptionText := OptionText + ColorCode(ANSI_RESET);
       SeperatiorText := ' | ';
     end;
     if Option.IsLong then
     begin
-      OptionText := OptionText + ANSI_RESET + SeperatiorText + ANSI_GREEN + '--' + Option.Long;
-      Inc(TextCount, 4 + SeperatiorText.Length + Option.Long.Length);
+      OptionText := OptionText + ColorCode(ANSI_RESET) + SeperatiorText + ColorCode(ANSI_GREEN) + '--' + Option.Long;
+      Inc(TextCount, SeperatiorText.Length + 2 + Option.Long.Length);
       if Option.ValidationType <> avSwitch then
       begin
-        OptionText := OptionText + '=' + ANSI_YELLOW + '<' + Option.HelpParameter + '>';
-        Inc(TextCount, Option.HelpParameter.Length + 2);
+        OptionText := OptionText + '=' + ColorCode(ANSI_YELLOW) + '<' + Option.HelpParameter + '>';
+        Inc(TextCount, 1 + Option.HelpParameter.Length + 2);
       end;
-      OptionText := OptionText + ANSI_RESET + ']';
     end;
+    OptionText := OptionText + ColorCode(ANSI_RESET) + ']';
+    Inc(TextCount, 1);
     ConsoleSplitter.AddWord(OptionText, TextCount);
   end;
 
@@ -549,7 +592,7 @@ begin
       ArgHolders := '[]';
       if (Argument.State = asRequired) then
         ArgHolders := '<>';
-      Write(ArgHolders.Chars[0] + ANSI_GREEN + Argument.HelpParameter + ANSI_RESET + ArgHolders.chars[1] + ' ');
+      Write(ArgHolders.Chars[0] + ColorCode(ANSI_GREEN) + Argument.HelpParameter + ColorCode(ANSI_RESET) + ArgHolders.chars[1] + ' ');
     end;
     WriteLn;
   end;
@@ -563,7 +606,7 @@ var
   ConsoleSplitter: TConsoleTextSplitter;
 begin
   ConsoleSplitter := TConsoleTextSplitter.Create;
-  WriteLn(ANSI_BRIGHT_BLUE + 'Description: ' + ANSI_RESET);
+  WriteLn(ColorCode(ANSI_BRIGHT_BLUE) + 'Description: ' + ColorCode(ANSI_RESET));
   Write('  ');
   ConsoleSplitter.Text := FDescription;
   ConsoleSplitter.Render(2, FLineLength);
@@ -584,7 +627,7 @@ begin
   BuildSortedOptions(SortedOptions);
 
   ConsoleSplitter := TConsoleTextSplitter.Create;
-  WriteLn(ANSI_BRIGHT_BLUE + 'Options:' + ANSI_RESET);
+  WriteLn(ColorCode(ANSI_BRIGHT_BLUE) + 'Options:' + ColorCode(ANSI_RESET));
   for Index := 0 to SortedOptions.Count - 1 do
   begin
     Option := FOptions.Items[SortedOptions.ValueFromIndex[Index]];
@@ -592,24 +635,24 @@ begin
     Write('  ');
     if Option.IsShort then
     begin
-      Write(ANSI_GREEN + '-' + Option.Short + ' ' + ANSI_RESET);
+      Write(ColorCode(ANSI_GREEN) + '-' + Option.Short + ' ' + ColorCode(ANSI_RESET));
       Inc(SpaceCount, 3);
     end;
     if Option.IsLong then
     begin
-      Write(' ' + ANSI_BRIGHT_CYAN + '--' + Option.Long + ANSI_RESET);
+      Write(' ' + ColorCode(ANSI_BRIGHT_CYAN) + '--' + Option.Long + ColorCode(ANSI_RESET));
       Inc(SpaceCount, 3 + Option.Long.Length);
     end;
     if Option.ValidationType <> avSwitch then
     begin
-      Write(' ' + ANSI_YELLOW + '<' + Option.HelpParameter + '>' + ANSI_RESET);
+      Write(' ' + ColorCode(ANSI_YELLOW) + '<' + Option.HelpParameter + '>' + ColorCode(ANSI_RESET));
       Inc(SpaceCount, 1 + Option.HelpParameter.Length + 2);
     end;
     Write(StringOfChar(' ', 40 - SpaceCount));
     ConsoleSplitter.Text := Option.FDescription;
     if Option.ChoiceList.Count > 0 then
     begin
-      ConsoleSplitter.AddWord('  ' + ANSI_YELLOW + ' {' + Option.ChoiceListText + '} ' + ANSI_RESET, Option.ChoiceListText.Length);
+      ConsoleSplitter.AddWord('  ' + ColorCode(ANSI_YELLOW) + ' {' + Option.ChoiceListText + '} ' + ColorCode(ANSI_RESET), Option.ChoiceListText.Length);
     end;
     ConsoleSplitter.Render(40, FLineLength);
     WriteLn;
@@ -628,10 +671,10 @@ var
   ConsoleSplitter: TConsoleTextSplitter;
 begin
   ConsoleSplitter := TConsoleTextSplitter.Create;
-  WriteLn(ANSI_BRIGHT_BLUE + 'Arguments:' + ANSI_RESET);
+  WriteLn(ColorCode(ANSI_BRIGHT_BLUE) + 'Arguments:' + ColorCode(ANSI_RESET));
   for Argument in FArguments do
   begin
-    Write('  ' + ANSI_GREEN + Argument.HelpParameter + ANSI_RESET);
+    Write('  ' + ColorCode(ANSI_GREEN) + Argument.HelpParameter + ColorCode(ANSI_RESET));
     Write(StringOfChar(' ', 38 - Argument.HelpParameter.Length));
     ConsoleSplitter.Text := Argument.Description;
     ConsoleSplitter.Render(40, FLineLength);
@@ -641,7 +684,7 @@ begin
       for Index := 0 to Argument.ChoiceList.Count - 1 do
       begin
         ChoiceName := Argument.ChoiceList.Names[Index];
-        Write('    ' + ANSI_YELLOW + ChoiceName + ANSI_RESET);
+        Write('    ' + ColorCode(ANSI_YELLOW) + ChoiceName + ColorCode(ANSI_RESET));
         Write(StringOfChar(' ', 38 - ChoiceName.Length));
         Write(Argument.ChoiceList.ValueFromIndex[Index]);
         WriteLn;
@@ -652,7 +695,7 @@ begin
   FreeAndNil(ConsoleSplitter);
 end;
 
-function TArgumentParser.ParseOption(out ArgIndex: integer): boolean;
+function TArgumentParser.ParseOption(const Args: array of string; var ArgIndex: integer): boolean;
 var
   Value: ansistring;
   Short: char;
@@ -660,7 +703,7 @@ var
   Option: TOption;
 begin
   Result := False;
-  Value := ParamStr(ArgIndex);
+  Value := Args[ArgIndex];
   Short := GetOptionShort(Value);
   if Short <> SHORT_OPTION_EMPTY then
   begin
@@ -674,11 +717,11 @@ begin
     if Option.ValidationType <> avSwitch then
     begin
       Inc(ArgIndex);
-      if ArgIndex > ParamCount then
+      if ArgIndex > High(Args) then
       begin
         raise EArgumentParserException.Create('Cannot find option for value: ' + Value);
       end;
-      Option.Value := ParamStr(ArgIndex);
+      Option.Value := Args[ArgIndex];
     end;
   end;
   Long := GetOptionLong(Value);
@@ -713,7 +756,7 @@ begin
     KeyValue := Format('-%s--%s', [Option.Short, Option.Long]);
     if not Option.IsShort then
     begin
-      KeyValue := Format('--%s', [Option.Short, Option.Long]);
+      KeyValue := Format('--%s', [Option.Long]);
     end;
     AList.AddPair(KeyValue, Option.Name);
   end;
@@ -821,17 +864,31 @@ end;
 
 procedure TArgumentParser.Parse;
 var
+  Args: array of string;
+  Index: integer;
+begin
+  Args := nil;
+  SetLength(Args, ParamCount);
+  for Index := 1 to ParamCount do
+  begin
+    Args[Index - 1] := ParamStr(Index);
+  end;
+  Parse(Args);
+end;
+
+procedure TArgumentParser.Parse(const Args: array of string);
+var
   Index, ArgumentIndex: integer;
   Value: ansistring;
   Argument: TArgument;
 begin
-  Index := 1;
+  Index := 0;
   ArgumentIndex := 0;
-  while Index <= ParamCount do
+  while Index <= High(Args) do
   begin
-    if not ParseOption(Index) then
+    if not ParseOption(Args, Index) then
     begin
-      Value := ParamStr(Index);
+      Value := Args[Index];
       if FArguments.Count = 0 then
       begin
         raise EArgumentParserException.Create('Extra argument provided when none are needed: ' + Value);
@@ -893,5 +950,8 @@ begin
   Option := GetOption(AName);
   Result := Option.IsValue;
 end;
+
+initialization
+  ColorEnabled := DetectColorSupport;
 
 end.
