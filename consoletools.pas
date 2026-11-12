@@ -747,7 +747,8 @@ end;
 function TArgumentParser.DetectColorSupport: boolean;
 begin
   // https://no-color.org: any non-empty NO_COLOR value disables colour
-  Result := GetEnvironmentVariable('NO_COLOR') = '';
+  // SysUtils', since the Windows unit has a GetEnvironmentVariable of its own
+  Result := SysUtils.GetEnvironmentVariable('NO_COLOR') = '';
   if not Result then
     Exit;
   {$ifdef UNIX}
