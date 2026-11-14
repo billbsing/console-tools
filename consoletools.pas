@@ -140,7 +140,8 @@ type
     // Returns ACode when IsColor is set, otherwise an empty string
     function ColorCode(const ACode: ansistring): ansistring;
     function AddOption(AName, Short, Long, ADescription, HelpParameter: ansistring; AValidationType: TArgumentValidationType = avString): TOption;
-    function AddArgument(AName, ADescription, HelpParameter: ansistring; AState: TArgumentState = asRequired; AValidationType: TArgumentValidationType = avString): TArgument;
+    function AddArgument(AName, ADescription, HelpParameter: ansistring; AState: TArgumentState = asRequired;
+      AValidationType: TArgumentValidationType = avString): TArgument;
     function GetOptionValueAsString(AName: ansistring; DefaultValue: ansistring = ''): ansistring;
     function GetOptionValueAsInteger(AName: ansistring; DefaultValue: integer = 0): integer;
     function GetArgumentValueAsString(AName: ansistring; DefaultValue: ansistring = ''): ansistring;
@@ -214,7 +215,7 @@ implementation
 uses StrUtils{$ifdef UNIX}, termio{$endif}{$ifdef WINDOWS}, Windows{$endif};
 
 
-{ TConsoleTextWord }
+  { TConsoleTextWord }
 
 constructor TConsoleTextWord.Create(AText: ansistring; ALength: integer);
 begin
@@ -383,7 +384,8 @@ begin
     avChoice: begin
       if (FChoiceList.IndexOf(FValue) < 0) and (FChoiceList.IndexOfName(FValue) < 0) then
       begin
-        raise EArgumentParserException.Create(ArgType + ' ' + ItemName + ' must be one of the following : {' + ChoiceListText + '} instead of the value: ' + FValue);
+        raise EArgumentParserException.Create(ArgType + ' ' + ItemName + ' must be one of the following : {' + ChoiceListText +
+          '} instead of the value: ' + FValue);
       end;
     end;
     avInteger: begin
@@ -600,10 +602,10 @@ begin
     SpaceCount := 2;
     Write('  ');
     if Option.IsShort then
-    begin
-      Write(ColorCode(ANSI_GREEN) + '-' + Option.Short + ' ' + ColorCode(ANSI_RESET));
-      Inc(SpaceCount, 3);
-    end;
+      Write(ColorCode(ANSI_GREEN) + '-' + Option.Short + ' ' + ColorCode(ANSI_RESET))
+    else
+      Write('   ');
+    Inc(SpaceCount, 3);
     if Option.IsLong then
     begin
       Write(' ' + ColorCode(ANSI_BRIGHT_CYAN) + '--' + Option.Long + ColorCode(ANSI_RESET));
@@ -765,7 +767,7 @@ begin
   FArguments := TArgumentList.Create(True);
   FLineLength := ARGUMENT_PARSER_DEFAULT_LINE_LENGTH;
   FArgumentIndexMap := TArgumentIndexMap.Create;
-  FIsColor:= DetectColorSupport;
+  FIsColor := DetectColorSupport;
 end;
 
 destructor TArgumentParser.Destroy;
